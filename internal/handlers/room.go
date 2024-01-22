@@ -15,10 +15,12 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
+// RoomCreate handles the creation of a new room and redirects to the room's URL.
 func RoomCreate(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/room/%s", guuid.New().String()))
 }
 
+// Room handles the HTTP request to render the room page.
 func Room(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	if uuid == "" {
@@ -42,6 +44,7 @@ func Room(c *fiber.Ctx) error {
 	}, "layouts/main")
 }
 
+// RoomWebsocket handles WebSocket connections for peers in a room.
 func RoomWebsocket(c *websocket.Conn) {
 	uuid := c.Params("uuid")
 	if uuid == "" {
@@ -52,6 +55,7 @@ func RoomWebsocket(c *websocket.Conn) {
 	w.RoomConn(c, room.Peers)
 }
 
+// createOrGetRoom creates or retrieves an existing room based on the provided UUID.
 func createOrGetRoom(uuid string) (string, string, *w.Room) {
 	w.RoomsLock.Lock()
 	defer w.RoomsLock.Unlock()
@@ -82,6 +86,7 @@ func createOrGetRoom(uuid string) (string, string, *w.Room) {
 	return uuid, suuid, room
 }
 
+// RoomViewerWebsocket handles WebSocket connections for viewers in a room.
 func RoomViewerWebsocket(c *websocket.Conn) {
 	uuid := c.Params("uuid")
 	if uuid == "" {
@@ -97,6 +102,7 @@ func RoomViewerWebsocket(c *websocket.Conn) {
 	w.RoomsLock.Unlock()
 }
 
+// roomViewerConn handles WebSocket connections for viewers in a room.
 func roomViewerConn(c *websocket.Conn, p *w.Peers) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -114,6 +120,7 @@ func roomViewerConn(c *websocket.Conn, p *w.Peers) {
 	}
 }
 
+// websocketMessage defines the structure of messages exchanged over WebSocket connections.
 type websocketMessage struct {
 	Event string `json:"event"`
 	Data  string `json:"data"`
