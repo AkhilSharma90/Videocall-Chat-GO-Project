@@ -14,11 +14,12 @@ import (
 )
 
 var (
-	RoomsLock sync.RWMutex
-	Rooms     map[string]*Room
-	Streams   map[string]*Room
+	RoomsLock sync.RWMutex // RoomsLock provides a read/write lock to protect access to the Rooms and Streams maps
+	Rooms     map[string]*Room // Rooms stores information about rooms for WebRTC connections
+	Streams   map[string]*Room // Streams stores information about streams for WebRTC connections
 )
 
+// turnConfig defines the configuration for ICE servers used in WebRTC connections
 var (
 	turnConfig = webrtc.Configuration{
 		ICETransportPolicy: webrtc.ICETransportPolicyRelay,
@@ -40,33 +41,39 @@ var (
 	}
 )
 
+// Room represents a WebRTC room, containing information about connected peers and a chat hub
 type Room struct {
 	Peers *Peers
 	Hub   *chat.Hub
 }
 
+// Peers represents the peers in a WebRTC room, including peer connections and track information
 type Peers struct {
 	ListLock    sync.RWMutex
 	Connections []PeerConnectionState
 	TrackLocals map[string]*webrtc.TrackLocalStaticRTP
 }
 
+// PeerConnectionState represents the state of a WebRTC peer connection along with associated WebSocket
 type PeerConnectionState struct {
 	PeerConnection *webrtc.PeerConnection
 	Websocket      *ThreadSafeWriter
 }
 
+// ThreadSafeWriter provides a thread-safe way to write JSON data to a WebSocket connection
 type ThreadSafeWriter struct {
 	Conn  *websocket.Conn
 	Mutex sync.Mutex
 }
 
+// WriteJSON writes JSON data to the WebSocket connection in a thread-safe manner
 func (t *ThreadSafeWriter) WriteJSON(v interface{}) error {
 	t.Mutex.Lock()
 	defer t.Mutex.Unlock()
 	return t.Conn.WriteJSON(v)
 }
 
+// AddTrack adds a remote WebRTC track to the local tracks in Peers
 func (p *Peers) AddTrack(t *webrtc.TrackRemote) *webrtc.TrackLocalStaticRTP {
 	p.ListLock.Lock()
 	defer func() {
@@ -84,6 +91,7 @@ func (p *Peers) AddTrack(t *webrtc.TrackRemote) *webrtc.TrackLocalStaticRTP {
 	return trackLocal
 }
 
+// RemoveTrack removes a local WebRTC track from the tracks in Peers
 func (p *Peers) RemoveTrack(t *webrtc.TrackLocalStaticRTP) {
 	p.ListLock.Lock()
 	defer func() {
@@ -94,6 +102,8 @@ func (p *Peers) RemoveTrack(t *webrtc.TrackLocalStaticRTP) {
 	delete(p.TrackLocals, t.ID())
 }
 
+// SignalPeerConnections signals peer connections about changes in tracks and performs offer/answer negotiation
+// This function handles synchronization, removes closed connections, and negotiates offers and answers
 func (p *Peers) SignalPeerConnections() {
 	p.ListLock.Lock()
 	defer func() {
@@ -180,6 +190,8 @@ func (p *Peers) SignalPeerConnections() {
 	}
 }
 
+// DispatchKeyFrame sends a PictureLossIndication RTCP packet to trigger a keyframe for all video tracks
+// This function sends PictureLossIndication RTCP packets for all video tracks
 func (p *Peers) DispatchKeyFrame() {
 	p.ListLock.Lock()
 	defer p.ListLock.Unlock()
@@ -199,6 +211,7 @@ func (p *Peers) DispatchKeyFrame() {
 	}
 }
 
+// websocketMessage represents a message format for communication over WebSocket
 type websocketMessage struct {
 	Event string `json:"event"`
 	Data  string `json:"data"`

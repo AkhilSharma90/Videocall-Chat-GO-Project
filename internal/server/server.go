@@ -16,23 +16,24 @@ import (
 )
 
 var (
-	addr = flag.String("addr", ":"+os.Getenv("PORT"), "")
-	cert = flag.String("cert", "", "")
-	key  = flag.String("key", "", "")
+	addr = flag.String("addr", ":"+os.Getenv("PORT"), "") // Address to listen on, defaults to the value of the PORT environment variable
+	cert = flag.String("cert", "", "")  // TLS certificate file path
+	key  = flag.String("key", "", "")    // TLS private key file path
 )
 
 func Run() error {
 	flag.Parse()
 
 	if *addr == ":" {
-		*addr = ":8080"
+		*addr = ":8080" // Set default address if not provided
 	}
 
-	engine := html.New("./views", ".html")
+	engine := html.New("./views", ".html") // Create HTML template engine
 	app := fiber.New(fiber.Config{Views: engine})
-	app.Use(logger.New())
-	app.Use(cors.New())
+	app.Use(logger.New())  // Enable request logging
+	app.Use(cors.New())    // Enable CORS
 
+	// Define routes and handlers
 	app.Get("/", handlers.Welcome)
 	app.Get("/room/create", handlers.RoomCreate)
 	app.Get("/room/:uuid", handlers.Room)
@@ -48,21 +49,21 @@ func Run() error {
 	}))
 	app.Get("/stream/:suuid/chat/websocket", websocket.New(handlers.StreamChatWebsocket))
 	app.Get("/stream/:suuid/viewer/websocket", websocket.New(handlers.StreamViewerWebsocket))
-	app.Static("/", "./assets")
+	app.Static("/", "./assets")  // Serve static assets
 
 	w.Rooms = make(map[string]*w.Room)
 	w.Streams = make(map[string]*w.Room)
-	go dispatchKeyFrames()
+	go dispatchKeyFrames()   // Start a goroutine to dispatch key frames periodically
 	if *cert != "" {
-		return app.ListenTLS(*addr, *cert, *key)
+		return app.ListenTLS(*addr, *cert, *key) // Start the server with TLS if certificate and key are provided
 	}
-	return app.Listen(*addr)
+	return app.Listen(*addr) // Start the server without TLS
 }
 
 func dispatchKeyFrames() {
 	for range time.NewTicker(time.Second * 3).C {
 		for _, room := range w.Rooms {
-			room.Peers.DispatchKeyFrame()
+			room.Peers.DispatchKeyFrame() // Dispatch key frames to all peers in each room
 		}
 	}
 }

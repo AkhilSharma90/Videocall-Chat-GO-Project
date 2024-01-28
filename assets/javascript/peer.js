@@ -1,6 +1,8 @@
+// Function to copy text to clipboard
 function copyToClipboard(text) {
 	if (window.clipboardData && window.clipboardData.setData) {
 		clipboardData.setData("Text", text);
+		// Show notification using SweetAlert
 		return Swal.fire({
 			position: 'top-end',
 			text: "Copied",
@@ -9,13 +11,16 @@ function copyToClipboard(text) {
 			width: '150px'
 		})
 	} else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
+		// Create a temporary textarea element to copy text
 		var textarea = document.createElement("textarea");
 		textarea.textContent = text;
 		textarea.style.position = "fixed";
 		document.body.appendChild(textarea);
 		textarea.select();
 		try {
+			// Execute copy command
 			document.execCommand("copy");
+			// Show notification using SweetAlert
 			return Swal.fire({
 				position: 'top-end',
 				text: "Copied",
@@ -32,7 +37,9 @@ function copyToClipboard(text) {
 	}
 }
 
+// Event listener when DOM content is loaded
 document.addEventListener('DOMContentLoaded', () => {
+	// Add click event to close notification
 	(document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
 		const $notification = $delete.parentNode;
 
@@ -42,10 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 });
 
+// Function to connect to the chat
 function connect(stream) {
+	// Display elements
 	document.getElementById('peers').style.display = 'block'
 	document.getElementById('chat').style.display = 'flex'
 	document.getElementById('noperm').style.display = 'none'
+
+	// Create an RTCPeerConnection
 	let pc = new RTCPeerConnection({
 		iceServers: [{
 				'urls': 'stun:turn.videochat:3478',
@@ -57,11 +68,14 @@ function connect(stream) {
 			}
 		]
 	})
+
+	// Event handler for remote tracks
 	pc.ontrack = function (event) {
 		if (event.track.kind === 'audio') {
 			return
 		}
 
+		// Create elements for displaying remote video
 		col = document.createElement("div")
 		col.className = "column is-6 peer"
 		let el = document.createElement(event.track.kind)
@@ -74,6 +88,7 @@ function connect(stream) {
 		document.getElementById('nocon').style.display = 'none'
 		document.getElementById('videos').appendChild(col)
 
+		// Event handlers for track mute and removal
 		event.track.onmute = function (event) {
 			el.play()
 		}
@@ -91,24 +106,29 @@ function connect(stream) {
 		}
 	}
 
+	// Add tracks from the stream to the connection
 	stream.getTracks().forEach(track => pc.addTrack(track, stream))
 
+	// Create a WebSocket for signaling
 	let ws = new WebSocket(RoomWebsocketAddr)
 	pc.onicecandidate = e => {
 		if (!e.candidate) {
 			return
 		}
 
+		// Send ICE candidate through WebSocket
 		ws.send(JSON.stringify({
 			event: 'candidate',
 			data: JSON.stringify(e.candidate)
 		}))
 	}
 
+	// Event handler for WebSocket error
 	ws.addEventListener('error', function (event) {
 		console.log('error: ', event)
 	})
 
+	// Event handler for WebSocket close
 	ws.onclose = function (evt) {
 		console.log("websocket has closed")
 		pc.close();
@@ -119,26 +139,31 @@ function connect(stream) {
 		}
 		document.getElementById('noone').style.display = 'none'
 		document.getElementById('nocon').style.display = 'flex'
+		// Reconnect after a delay
 		setTimeout(function () {
 			connect(stream);
 		}, 1000);
 	}
 
+	// Event handler for WebSocket messages
 	ws.onmessage = function (evt) {
 		let msg = JSON.parse(evt.data)
 		if (!msg) {
 			return console.log('failed to parse msg')
 		}
 
+		// Handle different types of messages
 		switch (msg.event) {
 			case 'offer':
 				let offer = JSON.parse(msg.data)
 				if (!offer) {
 					return console.log('failed to parse answer')
 				}
+				// Set remote description and create answer
 				pc.setRemoteDescription(offer)
 				pc.createAnswer().then(answer => {
 					pc.setLocalDescription(answer)
+					// Send answer through WebSocket
 					ws.send(JSON.stringify({
 						event: 'answer',
 						data: JSON.stringify(answer)
@@ -152,15 +177,18 @@ function connect(stream) {
 					return console.log('failed to parse candidate')
 				}
 
+				// Add ICE candidate to the connection
 				pc.addIceCandidate(candidate)
 		}
 	}
 
+	// Event handler for WebSocket error
 	ws.onerror = function (evt) {
 		console.log("error: " + evt.data)
 	}
 }
 
+// Get user media with specified constraints
 navigator.mediaDevices.getUserMedia({
 		video: {
 			width: {
@@ -179,6 +207,8 @@ navigator.mediaDevices.getUserMedia({
 		}
 	})
 	.then(stream => {
+		// Set local video element source
 		document.getElementById('localVideo').srcObject = stream
+		// Connect to the chat
 		connect(stream)
 	}).catch(err => console.log(err))

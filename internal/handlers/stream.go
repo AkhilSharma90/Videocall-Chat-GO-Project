@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/websocket/v2"
 )
 
+// Stream handles the HTTP request to render the stream page.
 func Stream(c *fiber.Ctx) error {
 	suuid := c.Params("suuid")
 	if suuid == "" {
@@ -40,6 +41,7 @@ func Stream(c *fiber.Ctx) error {
 	}, "layouts/main")
 }
 
+// StreamWebsocket handles WebSocket connections for peers in a stream.
 func StreamWebsocket(c *websocket.Conn) {
 	suuid := c.Params("suuid")
 	if suuid == "" {
@@ -55,6 +57,7 @@ func StreamWebsocket(c *websocket.Conn) {
 	w.RoomsLock.Unlock()
 }
 
+// StreamViewerWebsocket handles WebSocket connections for viewers in a stream.
 func StreamViewerWebsocket(c *websocket.Conn) {
 	suuid := c.Params("suuid")
 	if suuid == "" {
@@ -70,6 +73,7 @@ func StreamViewerWebsocket(c *websocket.Conn) {
 	w.RoomsLock.Unlock()
 }
 
+// viewerConn handles WebSocket connections for viewers in a stream.
 func viewerConn(c *websocket.Conn, p *w.Peers) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
